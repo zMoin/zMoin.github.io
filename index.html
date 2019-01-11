@@ -120,6 +120,12 @@
     <script src="assets/js/util.js"></script>
     <script src="assets/js/main.js"></script>
 
+    <script type="text/javascript">
+        // Get the current path.
+        path = location.pathname; // window.location.pathname;
+        window.history.pushState(null, null, path + "/site")
+    </script>
+
 </body>
 
 </html>
