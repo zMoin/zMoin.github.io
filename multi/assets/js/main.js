@@ -1,746 +1,383 @@
-/*
-	Lens by HTML5 UP
-	html5up.net | @ajlkn
-	Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
-*/
-
-var main = (function($) { var _ = {
-
-	/**
-	 * Settings.
-	 * @var {object}
-	 */
-	settings: {
-
-		// Preload all images.
-			preload: false,
-
-		// Slide duration (must match "duration.slide" in _vars.scss).
-			slideDuration: 500,
-
-		// Layout duration (must match "duration.layout" in _vars.scss).
-			layoutDuration: 750,
-
-		// Thumbnails per "row" (must match "misc.thumbnails-per-row" in _vars.scss).
-			thumbnailsPerRow: 2,
-
-		// Side of main wrapper (must match "misc.main-side" in _vars.scss).
-			mainSide: 'right'
-
-	},
-
-	/**
-	 * Window.
-	 * @var {jQuery}
-	 */
-	$window: null,
-
-	/**
-	 * Body.
-	 * @var {jQuery}
-	 */
-	$body: null,
-
-	/**
-	 * Main wrapper.
-	 * @var {jQuery}
-	 */
-	$main: null,
-
-	/**
-	 * Thumbnails.
-	 * @var {jQuery}
-	 */
-	$thumbnails: null,
-
-	/**
-	 * Viewer.
-	 * @var {jQuery}
-	 */
-	$viewer: null,
-
-	/**
-	 * Toggle.
-	 * @var {jQuery}
-	 */
-	$toggle: null,
-
-	/**
-	 * Nav (next).
-	 * @var {jQuery}
-	 */
-	$navNext: null,
-
-	/**
-	 * Nav (previous).
-	 * @var {jQuery}
-	 */
-	$navPrevious: null,
-
-	/**
-	 * Slides.
-	 * @var {array}
-	 */
-	slides: [],
-
-	/**
-	 * Current slide index.
-	 * @var {integer}
-	 */
-	current: null,
-
-	/**
-	 * Lock state.
-	 * @var {bool}
-	 */
-	locked: false,
-
-	/**
-	 * Keyboard shortcuts.
-	 * @var {object}
-	 */
-	keys: {
+(function($) {
 
-		// Escape: Toggle main wrapper.
-			27: function() {
-				_.toggle();
-			},
+    var $window = $(window),
+        $body = $('body'),
+        $wrapper = $('#wrapper'),
+        $main = $('#main'),
+        settings = {
 
-		// Up: Move up.
-			38: function() {
-				_.up();
-			},
+            // Keyboard shortcuts.
+            keyboardShortcuts: {
 
-		// Down: Move down.
-			40: function() {
-				_.down();
-			},
+                // If true, enables scrolling via keyboard shortcuts.
+                enabled: true,
 
-		// Space: Next.
-			32: function() {
-				_.next();
-			},
+                // Sets the distance to scroll when using the left/right arrow keys.
+                distance: 50
 
-		// Right Arrow: Next.
-			39: function() {
-				_.next();
-			},
+            },
 
-		// Left Arrow: Previous.
-			37: function() {
-				_.previous();
-			}
+            // Scroll wheel.
+            scrollWheel: {
 
-	},
+                // If true, enables scrolling via the scroll wheel.
+                enabled: true,
 
-	/**
-	 * Initialize properties.
-	 */
-	initProperties: function() {
+                // Sets the scroll wheel factor. (Ideally) a value between 0 and 1 (lower = slower scroll, higher = faster scroll).
+                factor: 1
 
-		// Window, body.
-			_.$window = $(window);
-			_.$body = $('body');
+            },
 
-		// Thumbnails.
-			_.$thumbnails = $('#thumbnails');
+            // Scroll zones.
+            scrollZones: {
 
-		// Viewer.
-			_.$viewer = $(
-				'<div id="viewer">' +
-					'<div class="inner">' +
-						'<div class="nav-next"></div>' +
-						'<div class="nav-previous"></div>' +
-						'<div class="toggle"></div>' +
-					'</div>' +
-				'</div>'
-			).appendTo(_.$body);
+                // If true, enables scrolling via scroll zones on the left/right edges of the scren.
+                enabled: true,
 
-		// Nav.
-			_.$navNext = _.$viewer.find('.nav-next');
-			_.$navPrevious = _.$viewer.find('.nav-previous');
+                // Sets the speed at which the page scrolls when a scroll zone is active (higher = faster scroll, lower = slower scroll).
+                speed: 15
 
-		// Main wrapper.
-			_.$main = $('#main');
+            }
 
-		// Toggle.
-			$('<div class="toggle"></div>')
-				.appendTo(_.$main);
+        };
 
-			_.$toggle = $('.toggle');
+    // Breakpoints.
+    breakpoints({
+        xlarge: ['1281px', '1680px'],
+        large: ['981px', '1280px'],
+        medium: ['737px', '980px'],
+        small: ['481px', '736px'],
+        xsmall: [null, '480px'],
+    });
 
-	},
+    // Tweaks/fixes.
 
-	/**
-	 * Initialize events.
-	 */
-	initEvents: function() {
+    // Mobile: Revert to native scrolling.
+    if (browser.mobile) {
 
-		// Window.
+        // Disable all scroll-assist features.
+        settings.keyboardShortcuts.enabled = false;
+        settings.scrollWheel.enabled = false;
+        settings.scrollZones.enabled = false;
 
-			// Remove is-preload-* classes on load.
-				_.$window.on('load', function() {
+        // Re-enable overflow on main.
+        $main.css('overflow-x', 'auto');
 
-					_.$body.removeClass('is-preload-0');
+    }
 
-					window.setTimeout(function() {
-						_.$body.removeClass('is-preload-1');
-					}, 100);
+    // IE: Fix min-height/flexbox.
+    if (browser.name == 'ie')
+        $wrapper.css('height', '100vh');
 
-					window.setTimeout(function() {
-						_.$body.removeClass('is-preload-2');
-					}, 100 + Math.max(_.settings.layoutDuration - 150, 0));
+    // iOS: Compensate for address bar.
+    if (browser.os == 'ios')
+        $wrapper.css('min-height', 'calc(100vh - 30px)');
 
-				});
+    // Play initial animations on page load.
+    $window.on('load', function() {
+        window.setTimeout(function() {
+            $body.removeClass('is-preload');
+        }, 100);
+    });
+
+    // Items.
+
+    // Assign a random "delay" class to each thumbnail item.
+    $('.item.thumb').each(function() {
+        $(this).addClass('delay-' + Math.floor((Math.random() * 6) + 1));
+    });
 
-			// Disable animations/transitions on resize.
-				var resizeTimeout;
+    // IE: Fix thumbnail images.
+    if (browser.name == 'ie')
+        $('.item.thumb').each(function() {
 
-				_.$window.on('resize', function() {
+            var $this = $(this),
+                $img = $this.find('img');
 
-					_.$body.addClass('is-preload-0');
-					window.clearTimeout(resizeTimeout);
+            $this
+                .css('background-image', 'url(' + $img.attr('src') + ')')
+                .css('background-size', 'cover')
+                .css('background-position', 'center');
 
-					resizeTimeout = window.setTimeout(function() {
-						_.$body.removeClass('is-preload-0');
-					}, 100);
-
-				});
-
-		// Viewer.
-
-			// Hide main wrapper on tap (<= medium only).
-				_.$viewer.on('touchend', function() {
-
-					if (breakpoints.active('<=medium'))
-						_.hide();
-
-				});
-
-			// Touch gestures.
-				_.$viewer
-					.on('touchstart', function(event) {
-
-						// Record start position.
-							_.$viewer.touchPosX = event.originalEvent.touches[0].pageX;
-							_.$viewer.touchPosY = event.originalEvent.touches[0].pageY;
-
-					})
-					.on('touchmove', function(event) {
-
-						// No start position recorded? Bail.
-							if (_.$viewer.touchPosX === null
-							||	_.$viewer.touchPosY === null)
-								return;
-
-						// Calculate stuff.
-							var	diffX = _.$viewer.touchPosX - event.originalEvent.touches[0].pageX,
-								diffY = _.$viewer.touchPosY - event.originalEvent.touches[0].pageY;
-								boundary = 20,
-								delta = 50;
-
-						// Swipe left (next).
-							if ( (diffY < boundary && diffY > (-1 * boundary)) && (diffX > delta) )
-								_.next();
-
-						// Swipe right (previous).
-							else if ( (diffY < boundary && diffY > (-1 * boundary)) && (diffX < (-1 * delta)) )
-								_.previous();
-
-						// Overscroll fix.
-							var	th = _.$viewer.outerHeight(),
-								ts = (_.$viewer.get(0).scrollHeight - _.$viewer.scrollTop());
-
-							if ((_.$viewer.scrollTop() <= 0 && diffY < 0)
-							|| (ts > (th - 2) && ts < (th + 2) && diffY > 0)) {
-
-								event.preventDefault();
-								event.stopPropagation();
-
-							}
-
-					});
-
-		// Main.
-
-			// Touch gestures.
-				_.$main
-					.on('touchstart', function(event) {
-
-						// Bail on xsmall.
-							if (breakpoints.active('<=xsmall'))
-								return;
-
-						// Record start position.
-							_.$main.touchPosX = event.originalEvent.touches[0].pageX;
-							_.$main.touchPosY = event.originalEvent.touches[0].pageY;
-
-					})
-					.on('touchmove', function(event) {
-
-						// Bail on xsmall.
-							if (breakpoints.active('<=xsmall'))
-								return;
-
-						// No start position recorded? Bail.
-							if (_.$main.touchPosX === null
-							||	_.$main.touchPosY === null)
-								return;
-
-						// Calculate stuff.
-							var	diffX = _.$main.touchPosX - event.originalEvent.touches[0].pageX,
-								diffY = _.$main.touchPosY - event.originalEvent.touches[0].pageY;
-								boundary = 20,
-								delta = 50,
-								result = false;
-
-						// Swipe to close.
-							switch (_.settings.mainSide) {
-
-								case 'left':
-									result = (diffY < boundary && diffY > (-1 * boundary)) && (diffX > delta);
-									break;
-
-								case 'right':
-									result = (diffY < boundary && diffY > (-1 * boundary)) && (diffX < (-1 * delta));
-									break;
-
-								default:
-									break;
-
-							}
-
-							if (result)
-								_.hide();
-
-						// Overscroll fix.
-							var	th = _.$main.outerHeight(),
-								ts = (_.$main.get(0).scrollHeight - _.$main.scrollTop());
-
-							if ((_.$main.scrollTop() <= 0 && diffY < 0)
-							|| (ts > (th - 2) && ts < (th + 2) && diffY > 0)) {
-
-								event.preventDefault();
-								event.stopPropagation();
-
-							}
-
-					});
-		// Toggle.
-			_.$toggle.on('click', function() {
-				_.toggle();
-			});
-
-			// Prevent event from bubbling up to "hide event on tap" event.
-				_.$toggle.on('touchend', function(event) {
-					event.stopPropagation();
-				});
-
-		// Nav.
-			_.$navNext.on('click', function() {
-				_.next();
-			});
-
-			_.$navPrevious.on('click', function() {
-				_.previous();
-			});
-
-		// Keyboard shortcuts.
-
-			// Ignore shortcuts within form elements.
-				_.$body.on('keydown', 'input,select,textarea', function(event) {
-					event.stopPropagation();
-				});
-
-			_.$window.on('keydown', function(event) {
-
-				// Ignore if xsmall is active.
-					if (breakpoints.active('<=xsmall'))
-						return;
-
-				// Check keycode.
-					if (event.keyCode in _.keys) {
-
-						// Stop other events.
-							event.stopPropagation();
-							event.preventDefault();
-
-						// Call shortcut.
-							(_.keys[event.keyCode])();
-
-					}
-
-			});
-
-	},
-
-	/**
-	 * Initialize viewer.
-	 */
-	initViewer: function() {
-
-		// Bind thumbnail click event.
-			_.$thumbnails
-				.on('click', '.thumbnail', function(event) {
-
-					var $this = $(this);
-
-					// Stop other events.
-						event.preventDefault();
-						event.stopPropagation();
-
-					// Locked? Blur.
-						if (_.locked)
-							$this.blur();
-
-					// Switch to this thumbnail's slide.
-						_.switchTo($this.data('index'));
-
-				});
-
-		// Create slides from thumbnails.
-			_.$thumbnails.children()
-				.each(function() {
-
-					var	$this = $(this),
-						$thumbnail = $this.children('.thumbnail'),
-						s;
-
-					// Slide object.
-						s = {
-							$parent: $this,
-							$slide: null,
-							$slideImage: null,
-							$slideCaption: null,
-							url: $thumbnail.attr('href'),
-							loaded: false
-						};
-
-					// Parent.
-						$this.attr('tabIndex', '-1');
-
-					// Slide.
-
-						// Create elements.
-	 						s.$slide = $('<div class="slide"><div class="caption"></div><div class="image"></div></div>');
-
-	 					// Image.
- 							s.$slideImage = s.$slide.children('.image');
-
- 							// Set background stuff.
-	 							s.$slideImage
-		 							.css('background-image', '')
-		 							.css('background-position', ($thumbnail.data('position') || 'center'));
-
-						// Caption.
-							s.$slideCaption = s.$slide.find('.caption');
-
-							// Move everything *except* the thumbnail itself to the caption.
-								$this.children().not($thumbnail)
-									.appendTo(s.$slideCaption);
-
-					// Preload?
-						if (_.settings.preload) {
-
-							// Force image to download.
-								var $img = $('<img src="' + s.url + '" />');
-
-							// Set slide's background image to it.
-								s.$slideImage
-									.css('background-image', 'url(' + s.url + ')');
-
-							// Mark slide as loaded.
-								s.$slide.addClass('loaded');
-								s.loaded = true;
-
-						}
-
-					// Add to slides array.
-						_.slides.push(s);
-
-					// Set thumbnail's index.
-						$thumbnail.data('index', _.slides.length - 1);
-
-				});
-
-	},
-
-	/**
-	 * Initialize stuff.
-	 */
-	init: function() {
-
-		// Breakpoints.
-			breakpoints({
-				xlarge:  [ '1281px',  '1680px' ],
-				large:   [ '981px',   '1280px' ],
-				medium:  [ '737px',   '980px'  ],
-				small:   [ '481px',   '736px'  ],
-				xsmall:  [ null,      '480px'  ]
-			});
-
-		// Everything else.
-			_.initProperties();
-			_.initViewer();
-			_.initEvents();
-
-		// Show first slide if xsmall isn't active.
-			breakpoints.on('>xsmall', function() {
-
-				if (_.current === null)
-					_.switchTo(0, true);
-
-			});
-
-	},
-
-	/**
-	 * Switch to a specific slide.
-	 * @param {integer} index Index.
-	 */
-	switchTo: function(index, noHide) {
-
-		// Already at index and xsmall isn't active? Bail.
-			if (_.current == index
-			&&	!breakpoints.active('<=xsmall'))
-				return;
-
-		// Locked? Bail.
-			if (_.locked)
-				return;
-
-		// Lock.
-			_.locked = true;
-
-		// Hide main wrapper if medium is active.
-			if (!noHide
-			&&	breakpoints.active('<=medium'))
-				_.hide();
-
-		// Get slides.
-			var	oldSlide = (_.current !== null ? _.slides[_.current] : null),
-				newSlide = _.slides[index];
-
-		// Update current.
-			_.current = index;
-
-		// Deactivate old slide (if there is one).
-			if (oldSlide) {
-
-				// Thumbnail.
-					oldSlide.$parent
-						.removeClass('active');
-
-				// Slide.
-					oldSlide.$slide.removeClass('active');
-
-			}
-
-		// Activate new slide.
-
-			// Thumbnail.
-				newSlide.$parent
-					.addClass('active')
-					.focus();
-
-			// Slide.
-				var f = function() {
-
-					// Old slide exists? Detach it.
-						if (oldSlide)
-							oldSlide.$slide.detach();
-
-					// Attach new slide.
-						newSlide.$slide.appendTo(_.$viewer);
-
-					// New slide not yet loaded?
-						if (!newSlide.loaded) {
-
-							window.setTimeout(function() {
-
-								// Mark as loading.
-									newSlide.$slide.addClass('loading');
-
-								// Wait for it to load.
-									$('<img src="' + newSlide.url + '" />').on('load', function() {
-									//window.setTimeout(function() {
-
-										// Set background image.
-											newSlide.$slideImage
-												.css('background-image', 'url(' + newSlide.url + ')');
-
-										// Mark as loaded.
-											newSlide.loaded = true;
-											newSlide.$slide.removeClass('loading');
-
-										// Mark as active.
-											newSlide.$slide.addClass('active');
-
-										// Unlock.
-											window.setTimeout(function() {
-												_.locked = false;
-											}, 100);
-
-									//}, 1000);
-									});
-
-							}, 100);
-
-						}
-
-					// Otherwise ...
-						else {
-
-							window.setTimeout(function() {
-
-								// Mark as active.
-									newSlide.$slide.addClass('active');
-
-								// Unlock.
-									window.setTimeout(function() {
-										_.locked = false;
-									}, 100);
-
-							}, 100);
-
-						}
-
-				};
-
-				// No old slide? Switch immediately.
-					if (!oldSlide)
-						(f)();
-
-				// Otherwise, wait for old slide to disappear first.
-					else
-						window.setTimeout(f, _.settings.slideDuration);
-
-	},
-
-	/**
-	 * Switches to the next slide.
-	 */
-	next: function() {
-
-		// Calculate new index.
-			var i, c = _.current, l = _.slides.length;
-
-			if (c >= l - 1)
-				i = 0;
-			else
-				i = c + 1;
-
-		// Switch.
-			_.switchTo(i);
-
-	},
-
-	/**
-	 * Switches to the previous slide.
-	 */
-	previous: function() {
-
-		// Calculate new index.
-			var i, c = _.current, l = _.slides.length;
-
-			if (c <= 0)
-				i = l - 1;
-			else
-				i = c - 1;
-
-		// Switch.
-			_.switchTo(i);
-
-	},
-
-	/**
-	 * Switches to slide "above" current.
-	 */
-	up: function() {
-
-		// Fullscreen? Bail.
-			if (_.$body.hasClass('fullscreen'))
-				return;
-
-		// Calculate new index.
-			var i, c = _.current, l = _.slides.length, tpr = _.settings.thumbnailsPerRow;
-
-			if (c <= (tpr - 1))
-				i = l - (tpr - 1 - c) - 1;
-			else
-				i = c - tpr;
-
-		// Switch.
-			_.switchTo(i);
-
-	},
-
-	/**
-	 * Switches to slide "below" current.
-	 */
-	down: function() {
-
-		// Fullscreen? Bail.
-			if (_.$body.hasClass('fullscreen'))
-				return;
-
-		// Calculate new index.
-			var i, c = _.current, l = _.slides.length, tpr = _.settings.thumbnailsPerRow;
-
-			if (c >= l - tpr)
-				i = c - l + tpr;
-			else
-				i = c + tpr;
-
-		// Switch.
-			_.switchTo(i);
-
-	},
-
-	/**
-	 * Shows the main wrapper.
-	 */
-	show: function() {
-
-		// Already visible? Bail.
-			if (!_.$body.hasClass('fullscreen'))
-				return;
-
-		// Show main wrapper.
-			_.$body.removeClass('fullscreen');
-
-		// Focus.
-			_.$main.focus();
-
-	},
-
-	/**
-	 * Hides the main wrapper.
-	 */
-	hide: function() {
-
-		// Already hidden? Bail.
-			if (_.$body.hasClass('fullscreen'))
-				return;
-
-		// Hide main wrapper.
-			_.$body.addClass('fullscreen');
-
-		// Blur.
-			_.$main.blur();
-
-	},
-
-	/**
-	 * Toggles main wrapper.
-	 */
-	toggle: function() {
-
-		if (_.$body.hasClass('fullscreen'))
-			_.show();
-		else
-			_.hide();
-
-	},
-
-}; return _; })(jQuery); main.init();
+            $img
+                .css('opacity', '0');
+
+        });
+
+    // Poptrox.
+    $main.poptrox({
+        onPopupOpen: function() { $body.addClass('is-poptrox-visible'); },
+        onPopupClose: function() { $body.removeClass('is-poptrox-visible'); },
+        overlayColor: '#1a1f2c',
+        overlayOpacity: 0.75,
+        popupCloserText: '',
+        popupLoaderText: '',
+        selector: '.item.thumb a.image',
+        caption: function($a) {
+            return $a.prev('h2').html();
+        },
+        usePopupDefaultStyling: false,
+        usePopupCloser: false,
+        usePopupCaption: true,
+        usePopupNav: true,
+        windowMargin: 50
+    });
+
+    breakpoints.on('>small', function() {
+        $main[0]._poptrox.windowMargin = 50;
+    });
+
+    breakpoints.on('<=small', function() {
+        $main[0]._poptrox.windowMargin = 0;
+    });
+
+    // Keyboard shortcuts.
+    if (settings.keyboardShortcuts.enabled)
+        (function() {
+
+            $window
+
+            // Keypress event.
+                .on('keydown', function(event) {
+
+                var scrolled = false;
+
+                if ($body.hasClass('is-poptrox-visible'))
+                    return;
+
+                switch (event.keyCode) {
+
+                    // Left arrow.
+                    case 37:
+                        $main.scrollLeft($main.scrollLeft() - settings.keyboardShortcuts.distance);
+                        scrolled = true;
+                        break;
+
+                        // Right arrow.
+                    case 39:
+                        $main.scrollLeft($main.scrollLeft() + settings.keyboardShortcuts.distance);
+                        scrolled = true;
+                        break;
+
+                        // Page Up.
+                    case 33:
+                        $main.scrollLeft($main.scrollLeft() - $window.width() + 100);
+                        scrolled = true;
+                        break;
+
+                        // Page Down, Space.
+                    case 34:
+                    case 32:
+                        $main.scrollLeft($main.scrollLeft() + $window.width() - 100);
+                        scrolled = true;
+                        break;
+
+                        // Home.
+                    case 36:
+                        $main.scrollLeft(0);
+                        scrolled = true;
+                        break;
+
+                        // End.
+                    case 35:
+                        $main.scrollLeft($main.width());
+                        scrolled = true;
+                        break;
+
+                }
+
+                // Scrolled?
+                if (scrolled) {
+
+                    // Prevent default.
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    // Stop link scroll.
+                    $main.stop();
+
+                }
+
+            });
+
+        })();
+
+    // Scroll wheel.
+    if (settings.scrollWheel.enabled)
+        (function() {
+
+            // Based on code by @miorel + @pieterv of Facebook (thanks guys :)
+            // github.com/facebook/fixed-data-table/blob/master/src/vendor_upstream/dom/normalizeWheel.js
+            var normalizeWheel = function(event) {
+
+                var pixelStep = 10,
+                    lineHeight = 40,
+                    pageHeight = 800,
+                    sX = 0,
+                    sY = 0,
+                    pX = 0,
+                    pY = 0;
+
+                // Legacy.
+                if ('detail' in event)
+                    sY = event.detail;
+                else if ('wheelDelta' in event)
+                    sY = event.wheelDelta / -120;
+                else if ('wheelDeltaY' in event)
+                    sY = event.wheelDeltaY / -120;
+
+                if ('wheelDeltaX' in event)
+                    sX = event.wheelDeltaX / -120;
+
+                // Side scrolling on FF with DOMMouseScroll.
+                if ('axis' in event &&
+                    event.axis === event.HORIZONTAL_AXIS) {
+                    sX = sY;
+                    sY = 0;
+                }
+
+                // Calculate.
+                pX = sX * pixelStep;
+                pY = sY * pixelStep;
+
+                if ('deltaY' in event)
+                    pY = event.deltaY;
+
+                if ('deltaX' in event)
+                    pX = event.deltaX;
+
+                if ((pX || pY) &&
+                    event.deltaMode) {
+
+                    if (event.deltaMode == 1) {
+                        pX *= lineHeight;
+                        pY *= lineHeight;
+                    } else {
+                        pX *= pageHeight;
+                        pY *= pageHeight;
+                    }
+
+                }
+
+                // Fallback if spin cannot be determined.
+                if (pX && !sX)
+                    sX = (pX < 1) ? -1 : 1;
+
+                if (pY && !sY)
+                    sY = (pY < 1) ? -1 : 1;
+
+                // Return.
+                return {
+                    spinX: sX,
+                    spinY: sY,
+                    pixelX: pX,
+                    pixelY: pY
+                };
+
+            };
+
+            // Wheel event.
+            $body.on('wheel', function(event) {
+
+                // Disable on <=small.
+                if (breakpoints.active('<=small'))
+                    return;
+
+                // Prevent default.
+                event.preventDefault();
+                event.stopPropagation();
+
+                // Stop link scroll.
+                $main.stop();
+
+                // Calculate delta, direction.
+                var n = normalizeWheel(event.originalEvent),
+                    x = (n.pixelX != 0 ? n.pixelX : n.pixelY),
+                    delta = Math.min(Math.abs(x), 150) * settings.scrollWheel.factor,
+                    direction = x > 0 ? 1 : -1;
+
+                // Scroll page.
+                $main.scrollLeft($main.scrollLeft() + (delta * direction));
+
+            });
+
+        })();
+
+    // Scroll zones.
+    if (settings.scrollZones.enabled)
+        (function() {
+
+            var $left = $('<div class="scrollZone left"></div>'),
+                $right = $('<div class="scrollZone right"></div>'),
+                $zones = $left.add($right),
+                paused = false,
+                intervalId = null,
+                direction,
+                activate = function(d) {
+
+                    // Disable on <=small.
+                    if (breakpoints.active('<=small'))
+                        return;
+
+                    // Paused? Bail.
+                    if (paused)
+                        return;
+
+                    // Stop link scroll.
+                    $main.stop();
+
+                    // Set direction.
+                    direction = d;
+
+                    // Initialize interval.
+                    clearInterval(intervalId);
+
+                    intervalId = setInterval(function() {
+                        $main.scrollLeft($main.scrollLeft() + (settings.scrollZones.speed * direction));
+                    }, 25);
+
+                },
+                deactivate = function() {
+
+                    // Unpause.
+                    paused = false;
+
+                    // Clear interval.
+                    clearInterval(intervalId);
+
+                };
+
+            $zones
+                .appendTo($wrapper)
+                .on('mouseleave mousedown', function(event) {
+                    deactivate();
+                });
+
+            $left
+                .css('left', '0')
+                .on('mouseenter', function(event) {
+                    activate(-1);
+                });
+
+            $right
+                .css('right', '0')
+                .on('mouseenter', function(event) {
+                    activate(1);
+                });
+
+            $body
+                .on('---pauseScrollZone', function(event) {
+
+                    // Pause.
+                    paused = true;
+
+                    // Unpause after delay.
+                    setTimeout(function() {
+                        paused = false;
+                    }, 500);
+
+                });
+
+        })();
+
+})(jQuery);
