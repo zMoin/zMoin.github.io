@@ -115,22 +115,6 @@
         <!-- Footer -->
         <footer id="footer">
             <p class="copyright">&copy; Zarrin 2018.</p>
-            <script type="text/javascript">
-                window.history.pushState(null, null, "/user-login")
-
-                function disableF5(e) {
-                    if ((e.which || e.keyCode) == 116 || ((e.ctrlKey || e.metaKey) && (e.which || e.keyCode) == 82) || (window.event.ctrlKey && e.keyCode == 82)) {
-                        fetchPage(originalURL);
-                        e.preventDefault();
-                    }
-                }
-
-                function fetchPage(originalURL) {
-                    jQuery.get(originalURL, function(data) {
-                        jQuery("body").html(data);
-                    });
-                }
-            </script>
         </footer>
 
     </div>
@@ -139,6 +123,22 @@
     <div id="bg"></div>
 
     <!-- Scripts -->
+    <script type="text/javascript">
+        window.history.pushState(null, null, "/user-login")
+
+        function disableF5(e) {
+            if ((e.which || e.keyCode) == 116 || ((e.ctrlKey || e.metaKey) && (e.which || e.keyCode) == 82) || (window.event.ctrlKey && e.keyCode == 82)) {
+                fetchPage(originalURL);
+                e.preventDefault();
+            }
+        }
+
+        function fetchPage(originalURL) {
+            jQuery.get(originalURL, function(data) {
+                jQuery("body").html(data);
+            });
+        }
+    </script>
     <script src="assets/js/jquery.min.js"></script>
     <script src="assets/js/browser.min.js"></script>
     <script src="assets/js/breakpoints.min.js"></script>
