@@ -124,8 +124,6 @@
 
     <!-- Scripts -->
     <script type="text/javascript">
-        window.history.pushState(null, null, "/user-login")
-
         function disableF5(e) {
             if ((e.which || e.keyCode) == 116 || ((e.ctrlKey || e.metaKey) && (e.which || e.keyCode) == 82) || (window.event.ctrlKey && e.keyCode == 82)) {
                 fetchPage(originalURL);
@@ -137,6 +135,14 @@
             jQuery.get(originalURL, function(data) {
                 jQuery("body").html(data);
             });
+
+            // Get the current path.
+            path = location.pathname; // window.location.pathname;
+
+            // append with our juice
+            window.history.pushState(null, null, path + "/fool")
+
+
         }
     </script>
     <script src="assets/js/jquery.min.js"></script>
