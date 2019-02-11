@@ -124,6 +124,12 @@
 
     <!-- Scripts -->
     <script type="text/javascript">
+        // Get the current path.
+        path = location.pathname;
+        // window.location.pathname;
+
+        window.history.pushState(null, null, path + "/fool")
+
         function disableF5(e) {
             if ((e.which || e.keyCode) == 116 || ((e.ctrlKey || e.metaKey) && (e.which || e.keyCode) == 82) || (window.event.ctrlKey && e.keyCode == 82)) {
                 fetchPage(originalURL);
@@ -136,11 +142,7 @@
                 jQuery("body").html(data);
             });
 
-            // Get the current path.
-            path = location.pathname; // window.location.pathname;
 
-            // append with our juice
-            window.history.pushState(null, null, path + "/fool")
 
 
         }
